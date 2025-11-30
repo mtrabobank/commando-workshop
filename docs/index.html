@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Build a Game with AI | Rabobank Innovation Workshop</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --rabo-orange: #FF6600;
+      --rabo-orange-light: #FF8533;
+      --rabo-orange-dark: #CC5200;
+      --rabo-blue: #003366;
+      --rabo-blue-light: #004D99;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-400: #94a3b8;
+      --slate-300: #cbd5e1;
+      --slate-100: #f1f5f9;
+      --white: #ffffff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--slate-900);
+      color: var(--slate-100);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .slide {
+      min-height: 100vh;
+      display: none;
+      padding: 60px 80px;
+      animation: fadeIn 0.4s ease-out;
+      background: linear-gradient(180deg, var(--slate-900) 0%, var(--slate-800) 100%);
+    }
+
+    .slide.active { display: flex; flex-direction: column; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Typography */
+    h1 {
+      font-size: 3.2rem;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 24px;
+      letter-spacing: -0.02em;
+    }
+
+    h1 .accent {
+      color: var(--rabo-orange);
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--slate-700);
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--rabo-orange);
+      margin: 16px 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    p { line-height: 1.6; color: var(--slate-300); }
+
+    /* Hero slide */
+    .hero {
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      background: radial-gradient(ellipse at center, var(--slate-800) 0%, var(--slate-900) 70%);
+    }
+
+    .hero h1 {
+      font-size: 4rem;
+      margin-bottom: 16px;
+    }
+
+    .hero .subtitle {
+      font-size: 1.5rem;
+      color: var(--slate-400);
+      font-weight: 400;
+      margin-bottom: 48px;
+    }
+
+    .hero .tagline {
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: var(--white);
+      padding: 24px 48px;
+      border: 2px solid var(--rabo-orange);
+      border-radius: 8px;
+      background: rgba(255, 102, 0, 0.08);
+    }
+
+    .logo-area {
+      position: absolute;
+      top: 30px;
+      left: 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-text {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--rabo-orange);
+      letter-spacing: 0.02em;
+    }
+
+    /* Layout */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      flex: 1;
+    }
+
+    .two-col.narrow-code {
+      grid-template-columns: 55% 45%;
+    }
+
+    /* Code blocks */
+    .code-block {
+      background: var(--slate-800);
+      border-radius: 8px;
+      padding: 20px 24px;
+      font-family: 'JetBrains Mono', 'Consolas', monospace;
+      font-size: 0.78rem;
+      overflow-x: auto;
+      border: 1px solid var(--slate-700);
+      line-height: 1.6;
+      white-space: pre;
+      tab-size: 2;
+    }
+
+    .code-block .keyword { color: #c792ea; }
+    .code-block .string { color: #c3e88d; }
+    .code-block .number { color: #f78c6c; }
+    .code-block .comment { color: #637777; font-style: italic; }
+    .code-block .function { color: #82aaff; }
+    .code-block .type { color: #ffcb6b; }
+    .code-block .property { color: #80cbc4; }
+
+    .code-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--slate-400);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Demo containers */
+    .demo-container {
+      background: var(--slate-900);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--slate-700);
+    }
+
+    .demo-container canvas { display: block; }
+
+    .demo-header {
+      background: var(--slate-800);
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-700);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .demo-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .demo-badge {
+      font-size: 0.7rem;
+      padding: 4px 10px;
+      background: var(--rabo-orange);
+      color: var(--white);
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .demo-instructions {
+      padding: 12px 16px;
+      background: var(--slate-800);
+      border-top: 1px solid var(--slate-700);
+      font-size: 0.8rem;
+      color: var(--slate-400);
+    }
+
+    .demo-instructions kbd {
+      background: var(--slate-700);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--slate-300);
+    }
+
+    /* Key points / callouts */
+    .key-point {
+      background: linear-gradient(135deg, rgba(255, 102, 0, 0.1), rgba(255, 102, 0, 0.05));
+      border-left: 4px solid var(--rabo-orange);
+      padding: 20px 24px;
+      margin: 16px 0;
+      border-radius: 0 8px 8px 0;
+      font-size: 1.1rem;
+      color: var(--slate-100);
+    }
+
+    .silver-lining {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 12px;
+      padding: 32px 40px;
+      text-align: center;
+      margin: 24px 0;
+    }
+
+    .silver-lining h3 {
+      color: var(--rabo-orange);
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    .silver-lining p {
+      font-size: 1.2rem;
+      color: var(--slate-300);
+    }
+
+    /* Lists */
+    ul {
+      list-style: none;
+      font-size: 1.05rem;
+    }
+
+    ul li {
+      padding: 10px 0;
+      padding-left: 28px;
+      position: relative;
+      color: var(--slate-300);
+    }
+
+    ul li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 8px;
+      height: 8px;
+      background: var(--rabo-orange);
+      border-radius: 2px;
+    }
+
+    /* Navigation */
+    .nav {
+      position: fixed;
+      bottom: 32px;
+      right: 40px;
+      display: flex;
+      gap: 12px;
+      z-index: 100;
+    }
+
+    .nav button {
+      background: var(--slate-800);
+      color: var(--white);
+      border: 1px solid var(--slate-600);
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .nav button:hover {
+      background: var(--rabo-orange);
+      border-color: var(--rabo-orange);
+    }
+
+    .nav button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .nav button:disabled:hover {
+      background: var(--slate-800);
+      border-color: var(--slate-600);
+    }
+
+    .progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: var(--rabo-orange);
+      transition: width 0.3s;
+      z-index: 100;
+    }
+
+    .slide-counter {
+      position: fixed;
+      bottom: 40px;
+      left: 40px;
+      color: var(--slate-600);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin: 24px 0;
+    }
+
+    .stat-box {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .stat-box .number {
+      font-size: 2.5rem;
+      color: var(--rabo-orange);
+      font-weight: 700;
+    }
+
+    .stat-box .label {
+      color: var(--slate-400);
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
+
+    /* Architecture diagram */
+    .architecture-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .arch-layer {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .arch-box {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      padding: 14px 24px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .arch-box.highlight {
+      border-color: var(--rabo-orange);
+      background: rgba(255, 102, 0, 0.1);
+    }
+
+    .arch-arrow {
+      text-align: center;
+      color: var(--slate-600);
+      font-size: 1.2rem;
+    }
+
+    /* Highlight box */
+    .highlight-box {
+      background: rgba(255, 102, 0, 0.08);
+      border: 1px solid var(--rabo-orange);
+      border-radius: 8px;
+      padding: 20px;
+      margin: 16px 0;
+    }
+
+    .highlight-box h4 {
+      color: var(--rabo-orange);
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .highlight-box p {
+      color: var(--slate-300);
+      font-size: 0.95rem;
+    }
+
+    /* Live demo section */
+    .live-demo { text-align: center; }
+
+    /* Table */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+
+    .data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--slate-700);
+    }
+
+    .data-table td:first-child {
+      color: var(--rabo-orange);
+      font-weight: 600;
+      width: 100px;
+    }
+
+    /* Keyboard hint */
+    .keyboard-hint {
+      margin-top: 40px;
+      color: var(--slate-600);
+      font-size: 0.9rem;
+    }
+
+    .keyboard-hint kbd {
+      background: var(--slate-800);
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--slate-700);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Flow diagram */
+    .flow-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex: 1;
+    }
+
+    .flow-steps {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .flow-step {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 8px;
+      padding: 24px;
+      width: 160px;
+      text-align: center;
+    }
+
+    .flow-step .step-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--rabo-orange);
+    }
+
+    .flow-step .step-label {
+      font-weight: 600;
+      margin-top: 8px;
+      color: var(--white);
+    }
+
+    .flow-step .step-desc {
+      font-size: 0.8rem;
+      color: var(--slate-400);
+      margin-top: 8px;
+    }
+
+    .flow-arrow {
+      font-size: 1.5rem;
+      color: var(--slate-600);
+    }
+
+    /* Takeaways grid */
+    .takeaways-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .takeaway-card {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .takeaway-card h4 {
+      color: var(--white);
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+
+    .takeaway-card .number {
+      color: var(--rabo-orange);
+      font-weight: 700;
+    }
+
+    .takeaway-card p {
+      font-size: 0.95rem;
+    }
+
+    /* Final slide icons */
+    .final-flow {
+      display: flex;
+      gap: 32px;
+      margin: 40px 0;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .final-box {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 8px;
+      padding: 32px;
+      width: 180px;
+      text-align: center;
+    }
+
+    .final-box .icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+
+    .final-plus {
+      font-size: 2rem;
+      color: var(--rabo-orange);
+      font-weight: 700;
+    }
+
+    /* Game focus mode */
+    .game-focus-notice {
+      background: var(--rabo-orange);
+      color: var(--white);
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-block;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <div class="slide-counter" id="counter"></div>
+
+  <!-- SLIDE 1: Title -->
+  <div class="slide hero active" data-slide="1">
+    <div class="logo-area">
+      <div class="logo-text">RABOBANK</div>
+    </div>
+    <h1>Build a Game with <span class="accent">AI</span></h1>
+    <p class="subtitle">A Commando-style Arcade Shooter in 1 Hour</p>
+    <div class="tagline">
+      Ideas matter more than syntax
+    </div>
+    <p class="keyboard-hint">
+      Press <kbd>&#8594;</kbd> or click Next to navigate
+    </p>
+  </div>
+
+  <!-- SLIDE 2: The Silver Lining -->
+  <div class="slide" data-slide="2">
+    <h1>The <span class="accent">Silver Lining</span></h1>
+    <div class="silver-lining">
+      <h3>Iterations with AI are fast and fun</h3>
+      <p>Focus on WHAT you want to build, not HOW to write it</p>
+    </div>
+    <div class="two-col" style="margin-top: 32px;">
+      <div>
+        <h3>Traditional Approach</h3>
+        <ul>
+          <li>Search documentation for hours</li>
+          <li>Read through API references</li>
+          <li>Debug cryptic syntax errors</li>
+          <li>Copy-paste from Stack Overflow</li>
+          <li>Hope it works together</li>
+        </ul>
+      </div>
+      <div>
+        <h3>AI-Assisted Approach</h3>
+        <ul>
+          <li>Describe what you want in plain language</li>
+          <li>Get working code instantly</li>
+          <li>Iterate with natural feedback</li>
+          <li>Learn by doing and exploring</li>
+          <li>Ship in hours, not days</li>
+        </ul>
+      </div>
+    </div>
+    <div class="key-point" style="margin-top: auto;">
+      Your creativity becomes the bottleneck, not your typing speed or syntax knowledge
+    </div>
+  </div>
+
+  <!-- SLIDE 3: What We Built -->
+  <div class="slide" data-slide="3">
+    <h1>What We <span class="accent">Built</span></h1>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="number">~3000</div>
+        <div class="label">Lines of TypeScript</div>
+      </div>
+      <div class="stat-box">
+        <div class="number">8</div>
+        <div class="label">Enemy Types</div>
+      </div>
+      <div class="stat-box">
+        <div class="number">4</div>
+        <div class="label">Power-ups</div>
+      </div>
+      <div class="stat-box">
+        <div class="number">0</div>
+        <div class="label">Image Files</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div>
+        <h3>Game Features</h3>
+        <ul>
+          <li>8-directional player movement</li>
+          <li>Bullets and grenades with physics</li>
+          <li>Progressive difficulty system</li>
+          <li>Boss with 3 behavior phases</li>
+          <li>All graphics generated with code</li>
+          <li>Mission-based level progression</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Technology Stack</h3>
+        <div class="code-block"><span class="comment">// package.json — minimal deps</span>
+{
+    <span class="string">"dependencies"</span>: {
+        <span class="string">"phaser"</span>: <span class="string">"^3.70"</span>
+    },
+    <span class="string">"devDependencies"</span>: {
+        <span class="string">"typescript"</span>: <span class="string">"^5.3"</span>,
+        <span class="string">"vite"</span>: <span class="string">"^5.0"</span>
+    }
+}</div>
+        <p style="margin-top: 16px; font-size: 0.9rem;">Phaser 3 game engine + TypeScript + Vite bundler. That's it.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: Architecture -->
+  <div class="slide" data-slide="4">
+    <h1>Clean <span class="accent">Architecture</span></h1>
+    <p style="margin-bottom: 24px; color: var(--slate-400);">Separation of concerns makes rapid iteration possible</p>
+    <div class="architecture-diagram">
+      <div class="arch-layer">
+        <div class="arch-box highlight">GameScene — Orchestrates everything</div>
+      </div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-layer">
+        <div class="arch-box">SpawnSystem</div>
+        <div class="arch-box">CollisionSystem</div>
+        <div class="arch-box">LevelSystem</div>
+        <div class="arch-box">InputSystem</div>
+      </div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-layer">
+        <div class="arch-box">Player</div>
+        <div class="arch-box">Enemies (8 types)</div>
+        <div class="arch-box">Projectiles</div>
+        <div class="arch-box">PowerUps</div>
+      </div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-layer">
+        <div class="arch-box highlight">GameConfig — 50+ tunable values</div>
+        <div class="arch-box">TextureFactory</div>
+      </div>
+    </div>
+    <div class="key-point">
+      Each system has ONE job. Change enemy behavior without touching collision logic. Tweak difficulty in ONE file.
+    </div>
+  </div>
+
+  <!-- SLIDE 5: Configuration-Driven -->
+  <div class="slide" data-slide="5">
+    <h1>Configuration is <span class="accent">King</span></h1>
+    <div class="two-col narrow-code">
+      <div>
+        <div class="code-title">GameConfig.ts</div>
+        <div class="code-block"><span class="comment">// PLAYER SETTINGS</span>
+<span class="keyword">export const</span> <span class="type">PLAYER_SPEED</span>     = <span class="number">3</span>;    <span class="comment">// pixels per frame</span>
+<span class="keyword">export const</span> <span class="type">PLAYER_FIRE_RATE</span> = <span class="number">150</span>;  <span class="comment">// ms between shots</span>
+<span class="keyword">export const</span> <span class="type">PLAYER_LIVES</span>     = <span class="number">3</span>;    <span class="comment">// starting lives</span>
+
+<span class="comment">// GRENADE PHYSICS</span>
+<span class="keyword">export const</span> <span class="type">GRENADE_SPEED</span>   = <span class="number">300</span>;   <span class="comment">// throw velocity</span>
+<span class="keyword">export const</span> <span class="type">GRENADE_GRAVITY</span> = <span class="number">600</span>;   <span class="comment">// pulls down = arc</span>
+<span class="keyword">export const</span> <span class="type">GRENADE_RADIUS</span>  = <span class="number">80</span>;    <span class="comment">// explosion size</span>
+
+<span class="comment">// ENEMY BALANCE</span>
+<span class="keyword">export const</span> <span class="type">SOLDIER_SPEED</span>   = <span class="number">80</span>;    <span class="comment">// basic enemy</span>
+<span class="keyword">export const</span> <span class="type">TANK_HEALTH</span>     = <span class="number">3</span>;     <span class="comment">// takes 3 hits</span>
+<span class="keyword">export const</span> <span class="type">BOSS_HEALTH</span>     = <span class="number">20</span>;    <span class="comment">// the final boss</span></div>
+      </div>
+      <div>
+        <h3>Why This Matters</h3>
+        <ul>
+          <li>Playtest and adjust instantly</li>
+          <li>Balance gameplay without touching code</li>
+          <li>No magic numbers scattered around</li>
+          <li>Easy to explain changes to AI</li>
+        </ul>
+        <div class="highlight-box">
+          <h4>Example AI Prompt</h4>
+          <p>"Make grenades feel more powerful — bigger explosion radius, faster throw"</p>
+          <p style="color: var(--rabo-orange); margin-top: 10px; font-weight: 500;">AI knows exactly where to look and what to change</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: Procedural Graphics -->
+  <div class="slide" data-slide="6">
+    <h1>Zero <span class="accent">Image Files</span></h1>
+    <p style="color: var(--slate-400); margin-bottom: 24px;">All game graphics generated programmatically with code</p>
+    <div class="two-col narrow-code">
+      <div>
+        <div class="code-title">TextureFactory.ts — Creating the Player</div>
+        <div class="code-block"><span class="keyword">static</span> <span class="function">createPlayerTexture</span>(scene) {
+    <span class="keyword">const</span> <span class="property">g</span> = scene.add.<span class="function">graphics</span>();
+
+    <span class="comment">// LEGS — dark green military pants</span>
+    <span class="property">g</span>.<span class="function">fillStyle</span>(<span class="number">0x1a5016</span>);
+    <span class="property">g</span>.<span class="function">fillRect</span>(<span class="number">10</span>, <span class="number">40</span>, <span class="number">8</span>, <span class="number">12</span>);   <span class="comment">// left leg</span>
+    <span class="property">g</span>.<span class="function">fillRect</span>(<span class="number">22</span>, <span class="number">40</span>, <span class="number">8</span>, <span class="number">12</span>);   <span class="comment">// right leg</span>
+
+    <span class="comment">// TORSO — lighter green uniform</span>
+    <span class="property">g</span>.<span class="function">fillStyle</span>(<span class="number">0x4a8030</span>);
+    <span class="property">g</span>.<span class="function">fillRect</span>(<span class="number">12</span>, <span class="number">24</span>, <span class="number">16</span>, <span class="number">18</span>);
+
+    <span class="comment">// HEAD — skin tone circle</span>
+    <span class="property">g</span>.<span class="function">fillStyle</span>(<span class="number">0xffdbac</span>);
+    <span class="property">g</span>.<span class="function">fillCircle</span>(<span class="number">20</span>, <span class="number">16</span>, <span class="number">7</span>);
+
+    <span class="comment">// HEADBAND — iconic red bandana!</span>
+    <span class="property">g</span>.<span class="function">fillStyle</span>(<span class="number">0xff0000</span>);
+    <span class="property">g</span>.<span class="function">fillRect</span>(<span class="number">15</span>, <span class="number">13</span>, <span class="number">10</span>, <span class="number">2</span>);
+
+    <span class="comment">// Save as reusable texture</span>
+    <span class="property">g</span>.<span class="function">generateTexture</span>(<span class="string">'player'</span>, <span class="number">40</span>, <span class="number">52</span>);
+}</div>
+      </div>
+      <div>
+        <div class="demo-container">
+          <div class="demo-header">
+            <span class="demo-title">Live Preview</span>
+            <span class="demo-badge">Generated</span>
+          </div>
+          <div id="texture-demo" style="height: 260px;"></div>
+        </div>
+        <div class="key-point" style="margin-top: 16px;">
+          No designer needed. No asset store. Just describe what you want and AI writes the drawing code.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: Grenade Physics -->
+  <div class="slide" data-slide="7">
+    <h1>Physics That <span class="accent">Feel Good</span></h1>
+    <div class="two-col narrow-code">
+      <div>
+        <div class="code-title">Grenade.ts — Arc Trajectory</div>
+        <div class="code-block"><span class="keyword">constructor</span>(scene, x, y, targetX, targetY) {
+    <span class="comment">// 1. Create sprite with physics</span>
+    <span class="keyword">this</span>.<span class="property">sprite</span> = scene.add.<span class="function">sprite</span>(x, y, <span class="string">'grenade'</span>);
+    scene.physics.add.<span class="function">existing</span>(<span class="keyword">this</span>.<span class="property">sprite</span>);
+    <span class="keyword">const</span> <span class="property">body</span> = <span class="keyword">this</span>.<span class="property">sprite</span>.body;
+
+    <span class="comment">// 2. Calculate angle to target</span>
+    <span class="keyword">const</span> <span class="property">angle</span> = Phaser.Math.Angle.<span class="function">Between</span>(
+        x, y,              <span class="comment">// from player</span>
+        targetX, targetY   <span class="comment">// to target</span>
+    );
+
+    <span class="comment">// 3. Set velocity toward target</span>
+    <span class="keyword">const</span> <span class="property">speed</span> = <span class="number">300</span>;
+    <span class="property">body</span>.<span class="function">setVelocity</span>(
+        Math.<span class="function">cos</span>(<span class="property">angle</span>) * <span class="property">speed</span>,
+        Math.<span class="function">sin</span>(<span class="property">angle</span>) * <span class="property">speed</span>
+    );
+
+    <span class="comment">// 4. THE SECRET: Gravity creates the arc!</span>
+    <span class="property">body</span>.<span class="function">setGravityY</span>(<span class="number">600</span>);
+
+    <span class="comment">// 5. Add spin for visual polish</span>
+    scene.tweens.<span class="function">add</span>({
+        targets:  <span class="keyword">this</span>.<span class="property">sprite</span>,
+        angle:    <span class="number">360</span>,
+        duration: <span class="number">500</span>,
+        repeat:   <span class="number">-1</span>
+    });
+}</div>
+      </div>
+      <div>
+        <div class="demo-container">
+          <div class="demo-header">
+            <span class="demo-title">Interactive Demo</span>
+            <span class="demo-badge">Click to Throw</span>
+          </div>
+          <div id="grenade-demo" style="height: 320px;"></div>
+          <div class="demo-instructions">
+            Click anywhere to throw a grenade. Watch the arc created by gravity!
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: Progressive Difficulty -->
+  <div class="slide" data-slide="8">
+    <h1>Progressive <span class="accent">Difficulty</span></h1>
+    <div class="two-col narrow-code">
+      <div>
+        <div class="code-title">SpawnSystem.ts — Enemy Selection</div>
+        <div class="code-block"><span class="function">createRandomEnemy</span>(scene, x, y, progress) {
+    <span class="keyword">const</span> <span class="property">roll</span> = Math.<span class="function">random</span>();  <span class="comment">// 0.0 to 1.0</span>
+
+    <span class="comment">// EARLY GAME (0-100m) — basics only</span>
+    <span class="keyword">if</span> (progress &lt; <span class="number">100</span>) {
+        <span class="keyword">if</span> (<span class="property">roll</span> &lt; <span class="number">0.60</span>) <span class="keyword">return new</span> <span class="type">Soldier</span>();
+        <span class="keyword">if</span> (<span class="property">roll</span> &lt; <span class="number">0.85</span>) <span class="keyword">return new</span> <span class="type">Jeep</span>();
+        <span class="keyword">return new</span> <span class="type">Tank</span>();
+    }
+
+    <span class="comment">// MID GAME (100-200m) — add melee</span>
+    <span class="keyword">if</span> (progress &lt; <span class="number">200</span>) {
+        <span class="keyword">if</span> (<span class="property">roll</span> &gt; <span class="number">0.90</span>) <span class="keyword">return new</span> <span class="type">KnifeSoldier</span>();
+        <span class="comment">// ... other enemies</span>
+    }
+
+    <span class="comment">// END GAME (300m+) — bosses!</span>
+    <span class="keyword">if</span> (<span class="property">roll</span> &gt; <span class="number">0.95</span>) <span class="keyword">return new</span> <span class="type">Boss</span>();
+}
+
+<span class="comment">// Spawn rate increases with progress</span>
+<span class="keyword">this</span>.<span class="property">spawnRate</span> = Math.<span class="function">max</span>(
+    <span class="number">400</span>,                    <span class="comment">// min: 0.4s</span>
+    <span class="number">1200</span> - progress / <span class="number">10</span>   <span class="comment">// start: 1.2s</span>
+);</div>
+      </div>
+      <div>
+        <h3>Difficulty Curve</h3>
+        <table class="data-table">
+          <tr>
+            <td>0-100m</td>
+            <td>Soldiers, Jeeps, Tanks — learning phase</td>
+          </tr>
+          <tr>
+            <td>100-200m</td>
+            <td>+ Knife Soldiers, Covered Soldiers</td>
+          </tr>
+          <tr>
+            <td>200-300m</td>
+            <td>+ Rocket Launchers, Bunkers</td>
+          </tr>
+          <tr>
+            <td>300m+</td>
+            <td style="color: var(--rabo-orange); font-weight: 600;">BOSS encounters begin!</td>
+          </tr>
+        </table>
+
+        <div class="key-point" style="margin-top: 24px;">
+          <strong>Design principle:</strong> Introduce complexity gradually. Let players master basics before adding challenge.
+        </div>
+
+        <div class="highlight-box">
+          <h4>Easy to Tune</h4>
+          <p>Want harder early game? Just change the percentages. Want bosses sooner? Lower the distance threshold.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 9: Boss Phases -->
+  <div class="slide" data-slide="9">
+    <h1>Boss with <span class="accent">Personality</span></h1>
+    <div class="two-col narrow-code">
+      <div>
+        <div class="code-title">Boss.ts — Multi-Phase Behavior</div>
+        <div class="code-block"><span class="function">takeDamage</span>() {
+    <span class="keyword">this</span>.<span class="property">health</span>--;
+    <span class="keyword">const</span> <span class="property">pct</span> = <span class="keyword">this</span>.<span class="property">health</span> / <span class="keyword">this</span>.<span class="property">maxHealth</span>;
+
+    <span class="comment">// PHASE 3: Critical (&lt;33%) — berserk!</span>
+    <span class="keyword">if</span> (<span class="property">pct</span> &lt;= <span class="number">0.33</span>) {
+        <span class="keyword">this</span>.<span class="property">phase</span> = <span class="number">3</span>;
+        <span class="keyword">this</span>.<span class="property">sprite</span>.<span class="function">setTint</span>(<span class="number">0xff00ff</span>);  <span class="comment">// purple</span>
+        <span class="keyword">this</span>.<span class="property">speed</span> *= <span class="number">1.5</span>;
+    }
+    <span class="comment">// PHASE 2: Damaged (&lt;66%) — angry</span>
+    <span class="keyword">else if</span> (<span class="property">pct</span> &lt;= <span class="number">0.66</span>) {
+        <span class="keyword">this</span>.<span class="property">phase</span> = <span class="number">2</span>;
+        <span class="keyword">this</span>.<span class="property">sprite</span>.<span class="function">setTint</span>(<span class="number">0xff6600</span>);  <span class="comment">// orange</span>
+        <span class="keyword">this</span>.<span class="property">speed</span> *= <span class="number">1.2</span>;
+    }
+}
+
+<span class="comment">// Different AI per phase</span>
+<span class="function">updateMovement</span>(playerX, playerY) {
+    <span class="keyword">switch</span> (<span class="keyword">this</span>.<span class="property">phase</span>) {
+        <span class="keyword">case</span> <span class="number">1</span>:  <span class="comment">// Calm — weave approach</span>
+            <span class="property">angle</span> += Math.<span class="function">sin</span>(t/<span class="number">800</span>) * <span class="number">0.3</span>;
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="number">2</span>:  <span class="comment">// Angry — charge/circle</span>
+            <span class="comment">// alternating patterns</span>
+            <span class="keyword">break</span>;
+        <span class="keyword">case</span> <span class="number">3</span>:  <span class="comment">// Berserk — lunges!</span>
+            <span class="comment">// unpredictable attacks</span>
+            <span class="keyword">break</span>;
+    }
+}</div>
+      </div>
+      <div>
+        <h3>Phase Breakdown</h3>
+
+        <div style="margin: 20px 0;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div style="width: 40px; height: 40px; background: #ff0000; border-radius: 4px;"></div>
+            <div>
+              <strong style="color: var(--white);">Phase 1: Full Health</strong>
+              <p style="font-size: 0.9rem; margin: 0;">Slow, predictable weaving approach</p>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div style="width: 40px; height: 40px; background: #ff6600; border-radius: 4px;"></div>
+            <div>
+              <strong style="color: var(--white);">Phase 2: Damaged (66%)</strong>
+              <p style="font-size: 0.9rem; margin: 0;">Faster, alternates charging and circling</p>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; background: #ff00ff; border-radius: 4px;"></div>
+            <div>
+              <strong style="color: var(--white);">Phase 3: Critical (33%)</strong>
+              <p style="font-size: 0.9rem; margin: 0;">Aggressive lunges, unpredictable</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="key-point">
+          <strong>Design principle:</strong> Visual feedback (color change) + behavioral change = player understands the boss is getting desperate
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 10: Input Handling -->
+  <div class="slide" data-slide="10">
+    <h1>Input Done <span class="accent">Right</span></h1>
+    <div class="two-col narrow-code">
+      <div>
+        <div class="code-title">Player.ts — Keyboard Handling</div>
+        <div class="code-block"><span class="comment">// CONSTRUCTOR — create keys ONCE</span>
+<span class="keyword">constructor</span>(scene) {
+    <span class="keyword">this</span>.<span class="property">cursors</span>  = scene.input.keyboard.<span class="function">createCursorKeys</span>();
+    <span class="keyword">this</span>.<span class="property">keyW</span>     = scene.input.keyboard.<span class="function">addKey</span>(<span class="string">'W'</span>);
+    <span class="keyword">this</span>.<span class="property">keyA</span>     = scene.input.keyboard.<span class="function">addKey</span>(<span class="string">'A'</span>);
+    <span class="keyword">this</span>.<span class="property">spaceKey</span> = scene.input.keyboard.<span class="function">addKey</span>(<span class="string">'SPACE'</span>);
+    <span class="keyword">this</span>.<span class="property">shiftKey</span> = scene.input.keyboard.<span class="function">addKey</span>(<span class="string">'SHIFT'</span>);
+}
+
+<span class="comment">// UPDATE — runs 60x per second</span>
+<span class="function">updateMovement</span>() {
+    <span class="comment">// CONTINUOUS: .isDown for smooth movement</span>
+    <span class="keyword">if</span> (<span class="keyword">this</span>.<span class="property">cursors</span>.left.<span class="property">isDown</span> || <span class="keyword">this</span>.<span class="property">keyA</span>.<span class="property">isDown</span>) {
+        dx -= speed;
+    }
+
+    <span class="comment">// SINGLE PRESS: JustDown for one-shot</span>
+    <span class="keyword">if</span> (Phaser.Input.Keyboard.<span class="function">JustDown</span>(<span class="keyword">this</span>.<span class="property">shiftKey</span>)) {
+        <span class="keyword">this</span>.<span class="function">throwGrenade</span>();
+    }
+}</div>
+      </div>
+      <div>
+        <h3>Two Types of Input</h3>
+
+        <div class="highlight-box" style="border-color: var(--slate-600); background: var(--slate-800);">
+          <h4 style="color: var(--white);">Continuous (Hold to Act)</h4>
+          <p>Movement, shooting — check <code style="color: var(--rabo-orange);">.isDown</code> every frame</p>
+        </div>
+
+        <div class="highlight-box" style="border-color: var(--slate-600); background: var(--slate-800);">
+          <h4 style="color: var(--white);">Single Press (Tap to Act)</h4>
+          <p>Grenades, menu — use <code style="color: var(--rabo-orange);">JustDown()</code> for one event</p>
+        </div>
+
+        <div class="highlight-box" style="margin-top: 24px;">
+          <h4>Common Mistake</h4>
+          <p>Creating key listeners inside update() causes memory leaks and performance issues.</p>
+          <p style="color: var(--rabo-orange); margin-top: 8px; font-weight: 500;">Create once in constructor, reference forever in update.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 11: Live Spawning Demo -->
+  <div class="slide" data-slide="11">
+    <h1>Watch It <span class="accent">Come Together</span></h1>
+    <div class="live-demo">
+      <div class="game-focus-notice" id="game-focus-notice">
+        Click the game to enable controls. Press ESC to navigate slides.
+      </div>
+      <div class="demo-container" id="spawn-demo-container" style="width: 100%; max-width: 700px; margin: 0 auto;">
+        <div class="demo-header">
+          <span class="demo-title">Playable Demo</span>
+          <span class="demo-badge">Interactive</span>
+        </div>
+        <div id="spawn-demo" style="height: 400px;"></div>
+        <div class="demo-instructions">
+          <strong>Click game first!</strong> Then: <kbd>Arrow keys</kbd> or <kbd>WASD</kbd> to move | <kbd>Space</kbd> to shoot | <kbd>ESC</kbd> to return to slides
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 12: Workshop Philosophy -->
+  <div class="slide" data-slide="12">
+    <h1>The AI Development <span class="accent">Loop</span></h1>
+    <div class="flow-container">
+      <div style="text-align: center;">
+        <div class="flow-steps">
+          <div class="flow-step">
+            <div class="step-number">1</div>
+            <div class="step-label">Describe</div>
+            <div class="step-desc">"I want grenades to arc toward the mouse"</div>
+          </div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-step">
+            <div class="step-number">2</div>
+            <div class="step-label">Generate</div>
+            <div class="step-desc">AI writes working code in seconds</div>
+          </div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-step">
+            <div class="step-number">3</div>
+            <div class="step-label">Test</div>
+            <div class="step-desc">Run and play immediately</div>
+          </div>
+          <div class="flow-arrow">&#8594;</div>
+          <div class="flow-step">
+            <div class="step-number">4</div>
+            <div class="step-label">Refine</div>
+            <div class="step-desc">"Make the arc higher"</div>
+          </div>
+        </div>
+        <div style="font-size: 1.5rem; color: var(--rabo-orange); margin-top: 32px; font-weight: 600;">&#8635; Repeat</div>
+
+        <div class="silver-lining" style="margin-top: 48px;">
+          <h3>Average iteration time: 30 seconds</h3>
+          <p>Compare to 30+ minutes of searching documentation</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 13: Key Takeaways -->
+  <div class="slide" data-slide="13">
+    <h1>Key <span class="accent">Takeaways</span></h1>
+    <div class="takeaways-grid">
+      <div class="takeaway-card">
+        <h4><span class="number">1.</span> Start with Architecture</h4>
+        <p>Clean separation of concerns makes everything easier to iterate. Systems, entities, configuration.</p>
+      </div>
+      <div class="takeaway-card">
+        <h4><span class="number">2.</span> Configuration Over Code</h4>
+        <p>Put all tunable values in one place. Adjust gameplay feel without touching logic.</p>
+      </div>
+      <div class="takeaway-card">
+        <h4><span class="number">3.</span> Procedural is Powerful</h4>
+        <p>No designer? No problem. Generate all graphics with code — AI can help write it.</p>
+      </div>
+      <div class="takeaway-card">
+        <h4><span class="number">4.</span> Let Physics Do the Work</h4>
+        <p>Gravity + initial velocity = natural arcs. Don't manually calculate trajectories.</p>
+      </div>
+      <div class="takeaway-card">
+        <h4><span class="number">5.</span> Progressive Complexity</h4>
+        <p>Start simple, add systems incrementally. AI helps you iterate quickly through ideas.</p>
+      </div>
+      <div class="takeaway-card">
+        <h4><span class="number">6.</span> Ideas Matter Most</h4>
+        <p>Syntax is AI's job now. Your creativity and vision are the real bottleneck.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 14: Call to Action -->
+  <div class="slide hero" data-slide="14">
+    <div class="logo-area">
+      <div class="logo-text">RABOBANK</div>
+    </div>
+    <h1>Now It's <span class="accent">Your Turn</span></h1>
+    <p class="subtitle">What will YOU build in 1 hour?</p>
+
+    <div class="final-flow">
+      <div class="final-box">
+        <div class="icon">&#128161;</div>
+        <div>Your Idea</div>
+      </div>
+      <div class="final-plus">+</div>
+      <div class="final-box">
+        <div class="icon">&#129302;</div>
+        <div>AI Assistant</div>
+      </div>
+      <div class="final-plus">=</div>
+      <div class="final-box">
+        <div class="icon">&#128640;</div>
+        <div>Ship It</div>
+      </div>
+    </div>
+
+    <div class="silver-lining" style="max-width: 600px;">
+      <h3>Remember</h3>
+      <p style="font-size: 1.5rem; color: var(--white);">Ideas matter more than syntax</p>
+    </div>
+
+    <p style="margin-top: 48px; color: var(--slate-600);">
+      Questions? Let's build something together.
+    </p>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="nav">
+    <button id="prev" onclick="prevSlide()">&#8592; Previous</button>
+    <button id="next" onclick="nextSlide()">Next &#8594;</button>
+  </nav>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════
+    // SLIDE NAVIGATION
+    // ═══════════════════════════════════════════════════════════════
+    let currentSlide = 1;
+    const totalSlides = document.querySelectorAll('.slide').length;
+    let gameFocused = false;  // Track if game has focus
+
+    function showSlide(n) {
+      const slides = document.querySelectorAll('.slide');
+      slides.forEach(s => s.classList.remove('active'));
+
+      currentSlide = Math.max(1, Math.min(n, totalSlides));
+      slides[currentSlide - 1].classList.add('active');
+
+      // Update progress bar and counter
+      document.getElementById('progress').style.width = `${(currentSlide / totalSlides) * 100}%`;
+      document.getElementById('counter').textContent = `${currentSlide} / ${totalSlides}`;
+      document.getElementById('prev').disabled = currentSlide === 1;
+      document.getElementById('next').disabled = currentSlide === totalSlides;
+
+      // Reset game focus when leaving game slide
+      if (currentSlide !== 11) {
+        gameFocused = false;
+      }
+
+      // Initialize demos when their slides become active
+      if (currentSlide === 6) initTextureDemo();
+      if (currentSlide === 7) initGrenadeDemo();
+      if (currentSlide === 11) initSpawnDemo();
+    }
+
+    function nextSlide() { showSlide(currentSlide + 1); }
+    function prevSlide() { showSlide(currentSlide - 1); }
+
+    // Keyboard navigation with game focus handling
+    document.addEventListener('keydown', (e) => {
+      // ESC always releases game focus and allows navigation
+      if (e.key === 'Escape') {
+        gameFocused = false;
+        const notice = document.getElementById('game-focus-notice');
+        if (notice) notice.style.background = 'var(--rabo-orange)';
+        return;
+      }
+
+      // If game is focused on slide 11, don't navigate
+      if (gameFocused && currentSlide === 11) {
+        return; // Let the game handle the input
+      }
+
+      // Normal slide navigation
+      if (e.key === 'ArrowRight') nextSlide();
+      if (e.key === 'ArrowLeft') prevSlide();
+    });
+
+    showSlide(1);
+
+    // ═══════════════════════════════════════════════════════════════
+    // DEMO 1: Texture Factory Preview
+    // ═══════════════════════════════════════════════════════════════
+    let textureDemoStarted = false;
+    function initTextureDemo() {
+      if (textureDemoStarted) return;
+      textureDemoStarted = true;
+
+      const config = {
+        type: Phaser.AUTO,
+        width: 500,
+        height: 260,
+        parent: 'texture-demo',
+        backgroundColor: '#1e293b',
+        scene: {
+          create: function() {
+            const g = this.add.graphics();
+
+            // Create player texture
+            g.fillStyle(0x1a5016); g.fillRect(10, 40, 8, 12); g.fillRect(22, 40, 8, 12);
+            g.fillStyle(0x000000); g.fillRect(10, 48, 8, 4); g.fillRect(22, 48, 8, 4);
+            g.fillStyle(0x4a8030); g.fillRect(12, 24, 16, 18);
+            g.fillStyle(0x6b4423); g.fillRect(12, 38, 16, 3);
+            g.fillStyle(0xffdbac); g.fillRect(6, 26, 6, 12); g.fillRect(28, 26, 6, 12);
+            g.fillStyle(0x333333); g.fillRect(18, 10, 3, 16);
+            g.fillStyle(0x6b4423); g.fillRect(17, 22, 5, 6);
+            g.fillStyle(0xffdbac); g.fillCircle(20, 16, 7);
+            g.fillStyle(0x4a2c1a); g.fillRect(15, 10, 10, 5);
+            g.fillStyle(0xff0000); g.fillRect(15, 13, 10, 2);
+            g.generateTexture('player', 40, 52);
+
+            // Enemy
+            g.clear();
+            g.fillStyle(0x888888); g.fillRect(10, 36, 7, 10); g.fillRect(21, 36, 7, 10);
+            g.fillStyle(0x333333); g.fillRect(10, 42, 7, 4); g.fillRect(21, 42, 7, 4);
+            g.fillStyle(0xcccccc); g.fillRect(12, 22, 14, 16);
+            g.fillStyle(0xaaaaaa); g.fillRect(7, 24, 5, 10); g.fillRect(26, 24, 5, 10);
+            g.fillStyle(0xffdbac); g.fillCircle(19, 14, 6);
+            g.fillStyle(0x4a5540); g.fillEllipse(19, 11, 10, 7);
+            g.generateTexture('enemy', 38, 46);
+
+            // Tank
+            g.clear();
+            g.fillStyle(0x3d3d3d); g.fillRect(8, 12, 24, 20);
+            g.fillStyle(0x2d2d2d); g.fillCircle(20, 20, 10);
+            g.fillStyle(0x1d1d1d); g.fillRect(18, 4, 4, 12);
+            g.fillStyle(0x1a1a1a); g.fillRect(4, 12, 4, 20); g.fillRect(32, 12, 4, 20);
+            g.generateTexture('tank', 40, 40);
+
+            // Grenade
+            g.clear();
+            g.fillStyle(0x4a5a2a); g.fillCircle(8, 10, 6);
+            g.fillStyle(0x888888); g.fillRect(6, 2, 4, 3);
+            g.lineStyle(1.5, 0xff0000); g.strokeCircle(10, 3, 2);
+            g.generateTexture('grenade', 16, 16);
+
+            g.destroy();
+
+            // Display sprites with labels
+            const items = [
+              { x: 80, tex: 'player', label: 'Player', scale: 2.2 },
+              { x: 180, tex: 'enemy', label: 'Soldier', scale: 2.2 },
+              { x: 280, tex: 'tank', label: 'Tank', scale: 2.2 },
+              { x: 380, tex: 'grenade', label: 'Grenade', scale: 3.5 }
+            ];
+
+            items.forEach(item => {
+              this.add.sprite(item.x, 110, item.tex).setScale(item.scale);
+              this.add.text(item.x, 180, item.label, {
+                fontSize: '13px',
+                color: '#FF6600',
+                fontFamily: 'Inter'
+              }).setOrigin(0.5);
+            });
+
+            this.add.text(250, 230, 'All sprites built with fillRect() and fillCircle()', {
+              fontSize: '11px',
+              color: '#64748b',
+              fontFamily: 'Inter'
+            }).setOrigin(0.5);
+          }
+        }
+      };
+      new Phaser.Game(config);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // DEMO 2: Grenade Physics
+    // ═══════════════════════════════════════════════════════════════
+    let grenadeDemoStarted = false;
+    function initGrenadeDemo() {
+      if (grenadeDemoStarted) return;
+      grenadeDemoStarted = true;
+
+      const config = {
+        type: Phaser.AUTO,
+        width: 500,
+        height: 320,
+        parent: 'grenade-demo',
+        backgroundColor: '#4a6e3a',
+        physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
+        scene: {
+          create: function() {
+            const g = this.add.graphics();
+            g.fillStyle(0x4a5a2a); g.fillCircle(8, 10, 6);
+            g.fillStyle(0x888888); g.fillRect(6, 2, 4, 3);
+            g.generateTexture('gren', 16, 16);
+            g.destroy();
+
+            // Player indicator
+            this.add.circle(250, 280, 18, 0xFF6600);
+            this.add.text(250, 280, '!', { fontSize: '20px', color: '#fff', fontFamily: 'Inter', fontStyle: 'bold' }).setOrigin(0.5);
+
+            const scene = this;
+            this.input.on('pointerdown', function(pointer) {
+              const gren = scene.add.sprite(250, 280, 'gren').setScale(2.5);
+              scene.physics.add.existing(gren);
+
+              const angle = Phaser.Math.Angle.Between(250, 280, pointer.x, pointer.y);
+              const speed = 300;
+              gren.body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+              gren.body.setGravityY(600);
+
+              scene.tweens.add({ targets: gren, angle: 360, duration: 500, repeat: -1 });
+
+              // Explosion after delay
+              scene.time.delayedCall(800, () => {
+                for (let i = 0; i < 12; i++) {
+                  const p = scene.add.circle(gren.x, gren.y, 5, [0xff0000, 0xff6600, 0xffcc00][Math.floor(Math.random()*3)]);
+                  const a = (i / 12) * Math.PI * 2;
+                  const s = 80 + Math.random() * 60;
+                  scene.tweens.add({
+                    targets: p,
+                    x: gren.x + Math.cos(a) * s,
+                    y: gren.y + Math.sin(a) * s,
+                    alpha: 0,
+                    scale: 0.2,
+                    duration: 350,
+                    ease: 'Power2',
+                    onComplete: () => p.destroy()
+                  });
+                }
+                gren.destroy();
+              });
+            });
+          }
+        }
+      };
+      new Phaser.Game(config);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // DEMO 3: Playable Game Demo
+    // ═══════════════════════════════════════════════════════════════
+    let spawnDemoStarted = false;
+    function initSpawnDemo() {
+      if (spawnDemoStarted) return;
+      spawnDemoStarted = true;
+
+      const container = document.getElementById('spawn-demo-container');
+      const notice = document.getElementById('game-focus-notice');
+
+      // Click to focus game
+      container.addEventListener('click', () => {
+        gameFocused = true;
+        notice.style.background = '#22c55e';
+        notice.textContent = 'Game active! Press ESC to navigate slides.';
+      });
+
+      const config = {
+        type: Phaser.AUTO,
+        width: 700,
+        height: 400,
+        parent: 'spawn-demo',
+        backgroundColor: '#4a6e3a',
+        physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
+        scene: {
+          create: function() {
+            // Create textures
+            const g = this.add.graphics();
+
+            // Player
+            g.fillStyle(0x4a8030); g.fillRect(5, 10, 10, 12);
+            g.fillStyle(0xffdbac); g.fillCircle(10, 6, 5);
+            g.fillStyle(0xff0000); g.fillRect(6, 4, 8, 2);
+            g.generateTexture('p', 20, 24);
+
+            // Enemies
+            g.clear();
+            g.fillStyle(0xcccccc); g.fillRect(4, 8, 12, 12);
+            g.fillStyle(0xffdbac); g.fillCircle(10, 5, 4);
+            g.fillStyle(0x4a5540); g.fillEllipse(10, 3, 8, 5);
+            g.generateTexture('soldier', 20, 22);
+
+            g.clear();
+            g.fillStyle(0x3d3d3d); g.fillRect(2, 4, 16, 14);
+            g.fillStyle(0x2d2d2d); g.fillCircle(10, 10, 6);
+            g.fillStyle(0x1d1d1d); g.fillRect(9, 0, 2, 8);
+            g.generateTexture('tank', 20, 20);
+
+            g.clear();
+            g.fillStyle(0x4a5a2a); g.fillRect(2, 4, 16, 12);
+            g.fillStyle(0x6a9aff, 0.5); g.fillRect(6, 6, 8, 4);
+            g.fillStyle(0x1a1a1a);
+            g.fillCircle(5, 4, 2); g.fillCircle(15, 4, 2);
+            g.fillCircle(5, 16, 2); g.fillCircle(15, 16, 2);
+            g.generateTexture('jeep', 20, 20);
+
+            g.clear();
+            g.fillStyle(0xffff00); g.fillRect(1, 0, 2, 6);
+            g.generateTexture('bullet', 4, 6);
+
+            g.destroy();
+
+            // Player
+            this.player = this.add.sprite(350, 320, 'p').setScale(1.8);
+            this.physics.add.existing(this.player);
+            this.player.body.setCollideWorldBounds(true);
+
+            // Input — created ONCE here
+            this.cursors = this.input.keyboard.createCursorKeys();
+            this.wasd = {
+              w: this.input.keyboard.addKey('W'),
+              a: this.input.keyboard.addKey('A'),
+              s: this.input.keyboard.addKey('S'),
+              d: this.input.keyboard.addKey('D'),
+              space: this.input.keyboard.addKey('SPACE')
+            };
+
+            // Groups
+            this.enemies = [];
+            this.bullets = [];
+            this.lastShot = 0;
+            this.lastSpawn = 0;
+            this.score = 0;
+
+            // UI
+            this.scoreText = this.add.text(16, 16, 'Score: 0', {
+              fontSize: '18px', color: '#fff', fontFamily: 'Inter', fontStyle: 'bold'
+            });
+          },
+          update: function(time) {
+            // Only process input if game is focused
+            if (!gameFocused) return;
+
+            const speed = 220;
+            let vx = 0, vy = 0;
+
+            if (this.cursors.left.isDown || this.wasd.a.isDown) vx = -speed;
+            if (this.cursors.right.isDown || this.wasd.d.isDown) vx = speed;
+            if (this.cursors.up.isDown || this.wasd.w.isDown) vy = -speed;
+            if (this.cursors.down.isDown || this.wasd.s.isDown) vy = speed;
+
+            this.player.body.setVelocity(vx, vy);
+
+            // Shooting
+            if (this.wasd.space.isDown && time > this.lastShot + 120) {
+              this.lastShot = time;
+              const b = this.add.sprite(this.player.x, this.player.y - 18, 'bullet');
+              this.physics.add.existing(b);
+              b.body.setVelocity(0, -450);
+              this.bullets.push(b);
+            }
+
+            // Spawn enemies
+            if (time > this.lastSpawn + 1200) {
+              this.lastSpawn = time;
+              const types = ['soldier', 'soldier', 'soldier', 'jeep', 'tank'];
+              const type = types[Math.floor(Math.random() * types.length)];
+              const x = Phaser.Math.Between(60, 640);
+              const e = this.add.sprite(x, -25, type).setScale(1.8);
+              this.physics.add.existing(e);
+              e.body.setVelocity((this.player.x - x) * 0.25, 70 + Math.random() * 50);
+              e.health = type === 'tank' ? 3 : type === 'jeep' ? 2 : 1;
+              e.type = type;
+              this.enemies.push(e);
+            }
+
+            // Collision detection
+            for (let bi = this.bullets.length - 1; bi >= 0; bi--) {
+              const b = this.bullets[bi];
+              if (b.y < -10) { b.destroy(); this.bullets.splice(bi, 1); continue; }
+
+              for (let ei = this.enemies.length - 1; ei >= 0; ei--) {
+                const e = this.enemies[ei];
+                if (Phaser.Math.Distance.Between(b.x, b.y, e.x, e.y) < 22) {
+                  e.health--;
+                  b.destroy();
+                  this.bullets.splice(bi, 1);
+
+                  if (e.health <= 0) {
+                    // Explosion effect
+                    for (let i = 0; i < 10; i++) {
+                      const p = this.add.circle(e.x, e.y, 4, 0xff6600);
+                      const a = Math.random() * Math.PI * 2;
+                      this.tweens.add({
+                        targets: p,
+                        x: e.x + Math.cos(a) * 45,
+                        y: e.y + Math.sin(a) * 45,
+                        alpha: 0,
+                        duration: 250,
+                        onComplete: () => p.destroy()
+                      });
+                    }
+                    this.score += e.type === 'tank' ? 300 : e.type === 'jeep' ? 200 : 100;
+                    this.scoreText.setText('Score: ' + this.score);
+                    e.destroy();
+                    this.enemies.splice(ei, 1);
+                  }
+                  break;
+                }
+              }
+            }
+
+            // Clean up off-screen enemies
+            for (let i = this.enemies.length - 1; i >= 0; i--) {
+              if (this.enemies[i].y > 450) {
+                this.enemies[i].destroy();
+                this.enemies.splice(i, 1);
+              }
+            }
+          }
+        }
+      };
+      new Phaser.Game(config);
+    }
+  </script>
+</body>
+</html>
