@@ -9,9 +9,10 @@ import { SCREEN_WIDTH, SCREEN_HEIGHT, SCROLL_SPEED } from '../config/GameConfig'
 
 export type EnvironmentType = 'jungle' | 'desert' | 'arctic' | 'urban';
 
-interface EnvironmentElement {
+export interface EnvironmentElement {
   sprite: Phaser.GameObjects.Sprite;
   scrollSpeed: number; // Relative to base scroll speed
+  collidable: boolean;
 }
 
 export class EnvironmentSystem {
@@ -29,7 +30,7 @@ export class EnvironmentSystem {
   /**
    * Update environment system - spawn new elements and scroll existing ones
    */
-  update(time: number, delta: number): void {
+  update(_time: number, delta: number, scrollSpeed: number = SCROLL_SPEED): void {
     this.spawnTimer += delta;
 
     // Spawn new elements periodically
@@ -43,7 +44,7 @@ export class EnvironmentSystem {
       const element = this.elements[i];
 
       // Scroll the element down
-      element.sprite.y += SCROLL_SPEED * element.scrollSpeed * (delta / 1000);
+      element.sprite.y += scrollSpeed * element.scrollSpeed * (delta / 1000);
 
       // Remove if off screen
       if (element.sprite.y > SCREEN_HEIGHT + 100) {
@@ -72,10 +73,22 @@ export class EnvironmentSystem {
       const scale = Phaser.Math.FloatBetween(0.8, 1.2);
       sprite.setScale(scale);
 
-      // Add to elements array with scroll speed variation
+      // Enable physics and make immovable
+      this.scene.physics.add.existing(sprite);
+      const body = sprite.body as Phaser.Physics.Arcade.Body;
+      body.setImmovable(true);
+      body.setAllowGravity(false);
+      // Set body size to match sprite size for all elements
+      // This ensures the "whole tree" is collidable, including leaves
+      body.setSize(sprite.width, sprite.height);
+      body.setOffset(0, 0);
+
+      // Mark trees, rocks, buildings, crates as collidable, water as not
+      const collidable = elementType !== 'water';
       this.elements.push({
         sprite: sprite,
-        scrollSpeed: Phaser.Math.FloatBetween(0.9, 1.1) // Slight parallax effect
+        scrollSpeed: Phaser.Math.FloatBetween(0.9, 1.1),
+        collidable: collidable
       });
     }
   }
@@ -124,5 +137,12 @@ export class EnvironmentSystem {
   destroy(): void {
     this.elements.forEach(element => element.sprite.destroy());
     this.elements = [];
+  }
+
+  /**
+   * Get all environment elements
+   */
+  getElements(): EnvironmentElement[] {
+    return this.elements;
   }
 }

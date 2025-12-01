@@ -18,7 +18,7 @@ import {
 export class Player {
   private sprite: Phaser.GameObjects.Sprite;
   private scene: Phaser.Scene;
-  private readonly speed: number = PLAYER_SPEED_PER_FRAME;
+
   private readonly boundaryMargin: number = 20;
 
   // Keyboard - created once
@@ -30,7 +30,7 @@ export class Player {
 
   // Shooting
   private lastFired: number = 0;
-  private readonly fireRate: number = PLAYER_FIRE_RATE;
+
 
   // Grenades
   private grenadeCount: number = GRENADE_INITIAL_COUNT;
@@ -66,7 +66,7 @@ export class Player {
     body.setSize(PLAYER_SIZE.width, PLAYER_SIZE.height);
     body.setOffset(8, 10);
     body.setAllowGravity(false);
-    body.setImmovable(true);
+    body.setCollideWorldBounds(true);
 
     // Create keyboard keys ONCE - simplest possible way
     if (scene.input.keyboard) {
@@ -128,48 +128,70 @@ export class Player {
   }
 
   /**
-   * Movement - using stored key objects (created once in constructor)
+   * Movement - using Arcade Physics velocity
    */
   private updateMovement(): void {
-    if (!this.cursors || !this.keyW) return;
+    if (this.isDead || !this.cursors || !this.keyW) return;
 
-    let x = this.sprite.x;
-    let y = this.sprite.y;
-    let dx = 0;
-    let dy = 0;
+    const body = this.sprite.body as Phaser.Physics.Arcade.Body;
+
+    let vx = 0;
+    let vy = 0;
 
     // Apply speed boost if active
-    const currentSpeed = this.baseSpeed * this.speedBoostMultiplier;
+    // 3 pixels/frame * 60 fps = 180 pixels/sec
+    const speedPerSec = this.baseSpeed * 60;
+    const currentSpeed = speedPerSec * this.speedBoostMultiplier;
 
-    // Check keys using .isDown - keys were created ONCE in constructor
-    if (this.cursors.left.isDown || this.keyA.isDown) dx -= currentSpeed;
-    if (this.cursors.right.isDown || this.keyD.isDown) dx += currentSpeed;
-    if (this.cursors.up.isDown || this.keyW.isDown) dy -= currentSpeed;
-    if (this.cursors.down.isDown || this.keyS.isDown) dy += currentSpeed;
+    // Check keys using .isDown
+    if (this.cursors.left.isDown || this.keyA.isDown) vx -= currentSpeed;
+    if (this.cursors.right.isDown || this.keyD.isDown) vx += currentSpeed;
+    if (this.cursors.up.isDown || this.keyW.isDown) vy -= currentSpeed;
+    if (this.cursors.down.isDown || this.keyS.isDown) vy += currentSpeed;
 
     // Diagonal normalization
-    if (dx !== 0 && dy !== 0) {
-      dx *= 0.707;
-      dy *= 0.707;
+    if (vx !== 0 && vy !== 0) {
+      vx *= 0.707;
+      vy *= 0.707;
     }
 
-    x += dx;
-    y += dy;
+    body.setVelocity(vx, vy);
 
-    // Boundaries
-    x = Phaser.Math.Clamp(x, this.boundaryMargin, SCREEN_WIDTH - this.boundaryMargin);
-    y = Phaser.Math.Clamp(y, this.boundaryMargin, SCREEN_HEIGHT - this.boundaryMargin);
+    // Boundaries - clamp position to keep player on screen
+    // We do this to prevent the player from leaving the screen area
+    const x = Phaser.Math.Clamp(this.sprite.x, this.boundaryMargin, SCREEN_WIDTH - this.boundaryMargin);
+    const y = Phaser.Math.Clamp(this.sprite.y, this.boundaryMargin, SCREEN_HEIGHT - this.boundaryMargin);
 
-    this.sprite.setPosition(x, y);
+    if (this.sprite.x !== x || this.sprite.y !== y) {
+      this.sprite.setPosition(x, y);
+    }
   }
 
-  shoot(time: number): Bullet | null {
+  shoot(time: number, dx: number = 0, dy: number = -1): Bullet | null {
     // Apply weapon upgrade to fire rate if active
     const currentFireRate = this.baseFireRate * this.weaponUpgradeMultiplier;
 
     if (time > this.lastFired + currentFireRate) {
       this.lastFired = time;
-      return new Bullet(this.scene, this.sprite.x, this.sprite.y - 25);
+      // Calculate spawn offset based on direction
+      let offsetX = 0;
+      let offsetY = 0;
+      const spriteWidth = this.sprite.displayWidth || 32;
+      const spriteHeight = this.sprite.displayHeight || 32;
+      if (dx !== 0 && dy === 0) {
+        // Horizontal only
+        offsetX = dx * (spriteWidth / 2 + 8); // 8px extra for visual separation
+        offsetY = 0;
+      } else if (dx !== 0 && dy !== 0) {
+        // Diagonal
+        offsetX = dx * (spriteWidth / 2 + 6);
+        offsetY = dy * (spriteHeight / 2 + 6);
+      } else {
+        // Vertical only
+        offsetX = 0;
+        offsetY = -spriteHeight / 2 - 8;
+      }
+      return new Bullet(this.scene, this.sprite.x + offsetX, this.sprite.y + offsetY, dx, dy);
     }
     return null;
   }
@@ -195,6 +217,10 @@ export class Player {
     this.grenadeCount = count;
   }
 
+  getIsDead(): boolean {
+    return this.isDead;
+  }
+
   getIsInvincible(): boolean {
     return this.isInvincible;
   }
@@ -205,9 +231,9 @@ export class Player {
   }
 
   respawn(x: number, y: number, time: number, invincibilityDuration: number): void {
+    this.reset();
     this.sprite.setPosition(x, y);
     this.activateInvincibility(invincibilityDuration, time);
-    this.sprite.setAlpha(1);
   }
 
   getSprite(): Phaser.GameObjects.Sprite {
@@ -244,5 +270,48 @@ export class Player {
     this.weaponUpgradeActive = true;
     this.weaponUpgradeMultiplier = multiplier;
     this.weaponUpgradeEndTime = currentTime + duration;
+  }
+
+  private isDead: boolean = false;
+
+  /**
+   * Play death animation
+   * Returns a promise that resolves when animation is complete
+   */
+  playDeathAnimation(): Promise<void> {
+    this.isDead = true;
+
+    // Stop physics
+    const body = this.sprite.body as Phaser.Physics.Arcade.Body;
+    body.setVelocity(0, 0);
+    body.enable = false;
+
+    return new Promise((resolve) => {
+      this.scene.tweens.add({
+        targets: this.sprite,
+        angle: 360 * 2, // Spin 2 times
+        alpha: 0,
+        scale: 0.1,
+        duration: 1000,
+        ease: 'Power2',
+        onComplete: () => {
+          this.sprite.setVisible(false);
+          resolve();
+        }
+      });
+    });
+  }
+
+  /**
+   * Reset player state for respawn
+   */
+  reset(): void {
+    this.isDead = false;
+    this.sprite.setVisible(true);
+    this.sprite.setAlpha(1);
+    this.sprite.setScale(0.6);
+    this.sprite.setAngle(0);
+    const body = this.sprite.body as Phaser.Physics.Arcade.Body;
+    body.enable = true;
   }
 }

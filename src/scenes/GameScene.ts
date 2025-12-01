@@ -40,9 +40,9 @@ export class GameScene extends Phaser.Scene {
   private spaceKey!: Phaser.Input.Keyboard.Key;
   private shiftKey!: Phaser.Input.Keyboard.Key;
 
+
   // Background
   private backgroundTiles: Phaser.GameObjects.TileSprite[] = [];
-  private scrollSpeed: number = SCROLL_SPEED;
 
   // Game state
   private mapProgress: number = 0;
@@ -52,6 +52,9 @@ export class GameScene extends Phaser.Scene {
 
   // Effects
   private explosionEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+
+  // Game over or victory flag
+  private isGameOverOrVictory: boolean = false;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -76,6 +79,10 @@ export class GameScene extends Phaser.Scene {
    * Create - Initialize all systems and entities
    */
   create(): void {
+    this.isGameOverOrVictory = false;
+    this.lives = PLAYER_INITIAL_LIVES;
+    this.mapProgress = 0;
+    this.hasWon = false;
     this.createBackground();
     this.createParticleSystem();
     this.createPlayer();
@@ -142,6 +149,7 @@ export class GameScene extends Phaser.Scene {
     if (this.input.keyboard) {
       this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
       this.shiftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+
     }
   }
 
@@ -156,17 +164,22 @@ export class GameScene extends Phaser.Scene {
     this.gameUI.updateLives(this.lives);
 
     // Create objectives panel with current mission objectives
-    const currentLevel = this.levelSystem.getCurrentLevelData();
     const objectives = this.levelSystem.getObjectives();
-    this.gameUI.createObjectives(objectives, currentLevel.name);
+    this.gameUI.createObjectives(objectives);
   }
 
   /**
    * Update - Main game loop
    */
   update(time: number, delta: number): void {
-    this.updateBackground(delta);
-    this.updateEnvironment(time, delta);
+    if (this.isGameOverOrVictory) return;
+    // Only scroll if Arrow Up is pressed
+    let scrollSpeed = 0;
+    if (this.player && (this.player as any).cursors && (this.player as any).cursors.up.isDown) {
+      scrollSpeed = SCROLL_SPEED;
+    }
+    this.updateBackground(delta, scrollSpeed);
+    this.updateEnvironment(time, delta, scrollSpeed);
     this.updateMapProgress(delta);
     this.checkVictoryCondition();
     this.updatePlayer(time);
@@ -178,22 +191,28 @@ export class GameScene extends Phaser.Scene {
     this.updatePowerUps();
     this.checkCollisions();
     this.updateKeyboardDebug();
+    // Prevent player from walking through environmental objects
+    this.environmentSystem.getElements().forEach(element => {
+      if (element.collidable) {
+        this.physics.world.collide(this.player.getSprite(), element.sprite);
+      }
+    });
   }
 
   /**
    * Update scrolling background
    */
-  private updateBackground(delta: number): void {
+  private updateBackground(delta: number, scrollSpeed: number): void {
     this.backgroundTiles.forEach(tile => {
-      tile.tilePositionY -= this.scrollSpeed * (delta / 1000);
+      tile.tilePositionY -= scrollSpeed * (delta / 1000);
     });
   }
 
   /**
    * Update environmental decorations
    */
-  private updateEnvironment(time: number, delta: number): void {
-    this.environmentSystem.update(time, delta);
+  private updateEnvironment(time: number, delta: number, scrollSpeed: number): void {
+    this.environmentSystem.update(time, delta, scrollSpeed);
   }
 
   /**
@@ -237,7 +256,20 @@ export class GameScene extends Phaser.Scene {
     // Check if Space key is held down (continuous fire)
     // Key is created ONCE in createInputKeys(), not here
     if (this.spaceKey && this.spaceKey.isDown) {
-      const bullet = this.player.shoot(time);
+      // Determine shooting direction from arrow keys
+      let dx = 0;
+      let dy = 0;
+      const cursors = (this.player as any).cursors;
+      if (cursors) {
+        if (cursors.left.isDown) dx -= 1;
+        if (cursors.right.isDown) dx += 1;
+        if (cursors.up.isDown) dy -= 1;
+        // Only allow horizontal if not pressing up
+        if (dy === 0 && dx === 0) dy = -1; // Default to up if no direction
+      } else {
+        dy = -1;
+      }
+      const bullet = this.player.shoot(time, dx, dy);
       if (bullet) {
         this.bullets.push(bullet);
         this.soundSystem.playShootSound();
@@ -392,7 +424,13 @@ export class GameScene extends Phaser.Scene {
   /**
    * Handle player death - respawn or game over depending on lives
    */
-  private onGameOver(): void {
+  private async onGameOver(): Promise<void> {
+    if (this.isGameOverOrVictory) return;
+
+    // Play death sound and animation
+    this.soundSystem.playPlayerDeathSound();
+    await this.player.playDeathAnimation();
+
     // Decrease lives
     this.lives--;
     this.gameUI.updateLives(this.lives);
@@ -427,43 +465,51 @@ export class GameScene extends Phaser.Scene {
    * Trigger actual game over (all lives lost)
    */
   private triggerGameOver(): void {
-    // Play game over sound
+    if (this.isGameOverOrVictory) return;
+    this.isGameOverOrVictory = true;
+    // Play game over sound ONCE
     this.soundSystem.playGameOverSound();
-
     this.gameUI.showGameOver(
       this.collisionSystem.getScore(),
       this.collisionSystem.getKills(),
       this.mapProgress,
       () => this.scene.restart()
     );
-
-    this.scene.pause();
+    // Listen for R key to restart
+    if (this.input.keyboard) {
+      this.input.keyboard.once('keydown-R', () => {
+        this.scene.stop();
+        this.scene.start('GameScene');
+      });
+    }
   }
 
   /**
    * Trigger victory (all objectives complete)
    */
   private triggerVictory(): void {
-    // Play victory sound
+    if (this.isGameOverOrVictory) return;
+    this.isGameOverOrVictory = true;
+    // Play victory sound ONCE
     this.soundSystem.playVictorySound();
-
-    // Complete level and save progress
     this.levelSystem.completeLevel(
       this.collisionSystem.getScore(),
       this.collisionSystem.getKills()
     );
-
-    // Check if there are more levels
     const hasNextLevel = this.levelSystem.hasNextLevel();
-
     this.gameUI.showVictory(
       this.collisionSystem.getScore(),
       this.collisionSystem.getKills(),
       this.mapProgress,
       () => this.handleVictoryRestart(hasNextLevel)
     );
-
-    this.scene.pause();
+    // Listen for R key to restart
+    if (this.input.keyboard) {
+      this.input.keyboard.once('keydown-R', () => {
+        this.scene.stop();
+        this.scene.start('GameScene');
+      });
+    }
   }
 
   /**
