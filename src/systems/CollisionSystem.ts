@@ -165,8 +165,8 @@ export class CollisionSystem {
       }
     }
 
-    // Check player vs enemy collisions (only if not invincible)
-    if (!player.getIsInvincible()) {
+    // Check player vs enemy collisions (only if not invincible and not dead)
+    if (!player.getIsInvincible() && !player.getIsDead()) {
       const playerSprite = player.getSprite();
       for (const enemy of enemies) {
         if (this.scene.physics.overlap(playerSprite, enemy.getSprite())) {

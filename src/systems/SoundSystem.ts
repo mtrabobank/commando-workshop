@@ -187,6 +187,35 @@ export class SoundSystem {
   }
 
   /**
+   * Play player death sound - dramatic descending sequence
+   */
+  playPlayerDeathSound(): void {
+    if (!this.enabled || !this.audioContext) return;
+
+    const ctx = this.audioContext;
+    const frequencies = [440, 349, 261, 196]; // A4, F4, C4, G3
+
+    frequencies.forEach((freq, index) => {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      oscillator.type = 'sawtooth';
+      oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(freq / 2, ctx.currentTime + 0.15);
+
+      const startTime = ctx.currentTime + index * 0.15;
+      gainNode.gain.setValueAtTime(this.masterVolume * 0.3, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.15);
+    });
+  }
+
+  /**
    * Play victory sound - triumphant ascending notes
    */
   playVictorySound(): void {

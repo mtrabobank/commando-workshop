@@ -10,13 +10,32 @@ export class Bullet {
   private sprite: Phaser.GameObjects.Sprite;
   private speed: number = BULLET_SPEED;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, dx: number, dy: number) {
     this.sprite = scene.add.sprite(x, y, 'bullet');
-    this.sprite.setScale(1.5);
+    // Stretch bullet for horizontal/diagonal shots
+    if (dx !== 0 && dy === 0) {
+      this.sprite.setScale(2.2, 1.0); // Horizontal
+    } else if (dx !== 0 && dy !== 0) {
+      this.sprite.setScale(1.8, 1.0); // Diagonal
+    } else {
+      this.sprite.setScale(1.5, 1.0); // Vertical
+    }
 
     scene.physics.add.existing(this.sprite);
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
-    body.setVelocityY(-this.speed);
+    // Normalize direction for consistent speed
+    const mag = Math.sqrt(dx * dx + dy * dy);
+    const ndx = mag === 0 ? 0 : dx / mag;
+    const ndy = mag === 0 ? -1 : dy / mag; // Default to up if no direction
+    body.setVelocity(ndx * this.speed, ndy * this.speed);
+
+    // Rotate bullet to match direction
+    if (mag !== 0) {
+      const angle = Math.atan2(ndy, ndx); // Radians
+      this.sprite.setRotation(angle - Math.PI / 2); // Phaser's up is -90deg
+    } else {
+      this.sprite.setRotation(-Math.PI / 2); // Default up
+    }
   }
 
   /**

@@ -152,7 +152,7 @@ export class GameUI {
   /**
    * Create objectives panel
    */
-  createObjectives(objectives: LevelObjective[], missionName: string): void {
+  createObjectives(objectives: LevelObjective[]): void {
     // Remove existing objectives if any
     if (this.objectivesContainer) {
       this.objectivesContainer.destroy();
@@ -162,7 +162,7 @@ export class GameUI {
     // Calculate panel size based on number of objectives
     const panelWidth = 320;
     const panelHeight = 40 + objectives.length * 25 + 15;
-    const panelX = SCREEN_WIDTH - panelWidth - 10;
+    const panelX = SCREEN_WIDTH - panelWidth - 20; // Moved slightly left
     const panelY = 100;
 
     // Semi-transparent dark background panel
@@ -172,7 +172,7 @@ export class GameUI {
       panelWidth,
       panelHeight,
       0x000000,
-      0.7
+      0.4 // More transparent
     );
     this.objectivesBackground.setStrokeStyle(2, 0x00ff00);
     this.objectivesBackground.setDepth(99);
@@ -302,7 +302,7 @@ export class GameUI {
   ): void {
     // Save score and check if it's a high score
     const isNewHighScore = HighScoreSystem.saveScore(score, kills, Math.floor(distance));
-    const highestScore = HighScoreSystem.getHighestScore();
+
 
     // Dark overlay with slight blue tint for victory
     const overlay = this.scene.add.rectangle(
@@ -470,7 +470,7 @@ export class GameUI {
   ): void {
     // Save score and check if it's a high score
     const isNewHighScore = HighScoreSystem.saveScore(score, kills, Math.floor(distance));
-    const highestScore = HighScoreSystem.getHighestScore();
+
 
     // Dark overlay
     const overlay = this.scene.add.rectangle(
